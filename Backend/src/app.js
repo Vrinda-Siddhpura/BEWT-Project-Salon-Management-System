@@ -20,7 +20,32 @@ const app = express();
 
 // Security and utility middlewares
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: true, credentials: true }));
+
+// CORS configuration with FRONTEND_URL support
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map((origin) => origin.trim())
+  : null;
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. mobile apps, curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // If FRONTEND_URL is not set or set to wildcard '*', allow any origin
+    if (!allowedOrigins || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -33,13 +58,16 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Salon Management System API Service is running',
-    documentation: 'http://localhost:5000/api-docs',
+    documentation: '/api-docs',
     timestamp: new Date().toISOString(),
   });
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'UP', message: 'Healthy' });
+  res.status(200).json({
+    status: 'OK',
+    message: 'Salon Management API is running',
+  });
 });
 
 // API Routes
